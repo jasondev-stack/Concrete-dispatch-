@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Concrete Dispatch</title>
+<style>
+  :root {
+    --bg:       #0f1923;
+    --surface:  #1a2635;
+    --surface2: #1e2f42;
+    --border:   #2a3a4d;
+    --text:     #e8eef5;
+    --muted:    #6b8099;
+    --accent:   #f4a820;
+    --header-h: 60px;
+    --legend-h: 42px;
+    --c-albany:   #7b5ea7;
+    --c-denmark:  #1a7fa8;
+    --c-kendenup: #c47c1a;
+    --c-standby:  #3a5068;
+    --c-oos:      #181f27;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    height: var(--header-h);
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    gap: 8px;
+  }
+
+  .logo {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .logo span { color: var(--text); font-weight: 400; }
+
+  .header-center {
+    display: flex; align-items: center; gap: 6px;
+    flex: 1; justify-content: center;
+  }
+
+  .nav-btn {
+    background: var(--border);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 34px; height: 34px;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+    -webkit-appearance: none;
+  }
+  .nav-btn:active { background: var(--accent); color: #000; }
+
+  .week-label {
+    font-size: 13px;
+    font-weight: 600;
+    min-width: 140px;
+    text-align: center;
+    white-space: nowrap;
+    color: var(--text);
+  }
+
+  .hdr-btn {
+    background: var(--border);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    -webkit-appearance: none;
+    transition: background 0.15s;
+  }
+  .hdr-btn.today { border-color: var(--accent); color: var(--accent); }
+  .hdr-btn.today:active { background: var(--accent); color: #000; }
+  .hdr-btn.fleet { border-color: #4a6a8a; }
+  .hdr-btn.fleet:active { background: #1e3a52; }
+
+  .save-dot { font-size: 10px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+  .save-dot.saved { color: #56c16b; }
+
+  /* ── LEGEND ── */
+  .legend {
+    height: var(--legend-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .legend::-webkit-scrollbar { display: none; }
+
+  .leg-label {
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted); flex-shrink: 0; margin-right: 2px;
+  }
+  .leg-sep { width: 1px; height: 16px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+  .leg-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; white-space: nowrap; flex-shrink: 0;
+    padding: 3px 6px; border-radius: 4px;
+  }
+  .leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── TABLE WRAPPER ── */
+  .table-wrap {
+    padding: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table { border-collapse: collapse; min-width: 700px; width: 100%; }
+
+  thead th {
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted);
+    padding: 8px 5px;
+    border-bottom: 2px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: calc(var(--header-h) + var(--legend-h));
+    z-index: 10;
+    white-space: nowrap;
+  }
+  thead th:first-child { text-align: left; padding-left: 10px; min-width: 110px; }
+  .day-header { text-align: center; min-width: 95px; }
+  .day-name { font-size: 12px; color: var(--text); }
+  .day-date { font-size: 9px; color: var(--muted); margin-top: 1px; }
+  .day-header.today-col .day-name { color: var(--accent); }
+  .day-header.today-col .day-date { color: var(--accent); opacity: 0.8; }
+
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr.oos-row { opacity: 0.45; }
+
+  .truck-cell {
+    padding: 7px 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    border-right: 2px solid var(--border);
+  }
+  .truck-num  { font-size: 9px; color: var(--accent); letter-spacing: 1px; }
+  .truck-num.dimmed { color: var(--muted); }
+  .truck-name { font-size: 12px; color: var(--text); line-height: 1.2; }
+  .truck-oos-badge {
+    display: inline-block;
+    font-size: 8px; font-weight: 700; letter-spacing: 1px;
+    background: #2a1515; color: #d04040;
+    border: 1px solid #4a2020;
+    border-radius: 3px; padding: 1px 4px; margin-top: 2px;
+  }
+
+  .day-cell {
+    padding: 4px; text-align: center;
+    border-right: 1px solid var(--border);
+    position: relative;
+  }
+  .day-cell.today-col { background: rgba(244,168,32,0.03); }
+
+  .cell-inner {
+    border-radius: 5px; min-height: 48px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer; position: relative;
+    border: 2px solid transparent;
+    padding: 3px;
+    transition: filter 0.1s;
+    -webkit-user-select: none; user-select: none;
+  }
+  .cell-inner:not(.oos-cell):active { filter: brightness(1.25); }
+  .cell-inner.active { border-color: rgba(255,255,255,0.75); }
+  .cell-inner.oos-cell {
+    background: var(--c-oos) !important;
+    cursor: default;
+    border: 1px dashed #2e3e50 !important;
+  }
+
+  .cell-text {
+    font-size: 10px; font-weight: 600;
+    color: rgba(255,255,255,0.95);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.55);
+    line-height: 1.3; word-break: break-word;
+  }
+  .cell-sub {
+    font-size: 8px; color: rgba(255,255,255,0.6);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;
+  }
+  .oos-label-text {
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 2px; color: #2e3e50;
+  }
+
+  .bg-albany   { background: var(--c-albany); }
+  .bg-denmark  { background: var(--c-denmark); }
+  .bg-kendenup { background: var(--c-kendenup); }
+  .bg-standby  { background: var(--c-standby); }
+  .bg-empty    { background: rgba(255,255,255,0.03); border: 1px dashed #2a3a4d !important; }
+
+  /* ── CELL POPUP ── */
+  .cell-popup {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 400;
+    background: #1c2c3e;
+    border-top: 1px solid #3a5060;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.6);
+    padding: 16px 16px 32px;
+    display: none;
+    animation: slideUp 0.18s ease-out;
+  }
+  .cell-popup.open { display: block; }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+
+  .popup-handle {
+    width: 36px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 14px;
+  }
+
+  .popup-truck-label {
+    font-size: 11px; font-weight: 700;
+    color: var(--muted); letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .popup-input {
+    width: 100%;
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 12px; border-radius: 8px;
+    font-family: var(--font); font-size: 15px;
+    margin-bottom: 12px; outline: none;
+    -webkit-appearance: none;
+  }
+  .popup-input:focus { border-color: var(--accent); }
+
+  .popup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .popup-option {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 12px;
+    border-radius: 8px; cursor: pointer;
+    font-size: 14px; font-weight: 600;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    text-align: left; width: 100%;
+    -webkit-appearance: none;
+    transition: border-color 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .popup-option:active { border-color: white; }
+  .opt-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  .popup-clear {
+    width: 100%; background: none;
+    border: 1px solid var(--border); color: var(--muted);
+    padding: 10px; border-radius: 8px; font-size: 13px;
+    cursor: pointer; font-family: var(--font);
+    -webkit-appearance: none;
+  }
+  .popup-clear:active { border-color: #d04040; color: #d04040; }
+
+  .popup-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 399;
+    display: none;
+  }
+  .popup-overlay.open { display: block; }
+
+  /* ── FLEET PANEL ── */
+  .fleet-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65);
+    display: none; align-items: flex-end;
+    justify-content: center;
+    z-index: 500;
+  }
+  .fleet-overlay.open { display: flex; }
+
+  .fleet-panel {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    width: 100%; max-width: 500px;
+    max-height: 88vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex; flex-direction: column;
+    animation: slideUp 0.2s ease-out;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .fleet-header {
+    padding: 16px 18px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0;
+    background: var(--surface); z-index: 10;
+  }
+  .fleet-handle {
+    position: absolute; top: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 36px; height: 4px;
+    background: var(--border); border-radius: 2px;
+  }
+  .fleet-title {
+    font-size: 16px; font-weight: 800;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--accent); margin-top: 8px;
+  }
+  .fleet-subtitle { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .fleet-close {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); width: 30px; height: 30px;
+    border-radius: 6px; font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 8px; -webkit-appearance: none;
+  }
+
+  .fleet-body { padding: 12px 14px; flex: 1; }
+
+  .fleet-section-title {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 8px; margin-top: 4px;
+  }
+
+  .fleet-truck {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .fleet-truck.is-oos { border-color: #3a2020; background: #171e27; }
+
+  .fleet-num {
+    font-size: 10px; font-weight: 700;
+    color: var(--accent); letter-spacing: 1px;
+    min-width: 34px;
+  }
+  .fleet-num.dimmed { color: var(--muted); }
+
+  .fleet-inputs { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+
+  .fleet-name-input {
+    width: 100%;
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 7px 10px; border-radius: 6px;
+    font-family: var(--font); font-size: 14px; outline: none;
+    -webkit-appearance: none;
+  }
+  .fleet-name-input:focus { border-color: var(--accent); }
+  .fleet-name-input.struck { color: var(--muted); text-decoration: line-through; }
+
+  .oos-row { display: flex; align-items: center; gap: 8px; }
+
+  .oos-toggle {
+    appearance: none; -webkit-appearance: none;
+    width: 38px; height: 22px;
+    background: var(--border); border-radius: 11px;
+    cursor: pointer; position: relative;
+    transition: background 0.2s; flex-shrink: 0;
+  }
+  .oos-toggle::after {
+    content: '';
+    position: absolute; top: 4px; left: 4px;
+    width: 14px; height: 14px;
+    background: var(--muted); border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .oos-toggle:checked { background: #4a1a1a; }
+  .oos-toggle:checked::after { transform: translateX(16px); background: #d04040; }
+
+  .oos-lbl { font-size: 12px; color: var(--muted); }
+  .oos-toggle:checked ~ .oos-lbl { color: #d04040; }
+
+  .add-section {
+    margin-top: 12px; padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .add-row { display: flex; gap: 6px; margin-top: 8px; }
+  .add-row input {
+    flex: 1; background: var(--bg);
+    border: 1px solid var(--border); color: var(--text);
+    padding: 9px 10px; border-radius: 6px;
+    font-size: 14px; font-family: var(--font); outline: none;
+    -webkit-appearance: none;
+  }
+  .add-row input:focus { border-color: var(--accent); }
+  .add-id { max-width: 80px; }
+  .add-btn {
+    background: var(--accent); border: none; color: #000;
+    padding: 9px 14px; border-radius: 6px; cursor: pointer;
+    font-family: var(--font); font-size: 13px; font-weight: 700;
+    white-space: nowrap; -webkit-appearance: none;
+  }
+
+  .fleet-footer {
+    padding: 12px 14px 20px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 8px;
+  }
+  .fleet-footer button {
+    flex: 1; padding: 12px; border-radius: 8px;
+    font-family: var(--font); font-size: 15px; font-weight: 700;
+    cursor: pointer; border: none; -webkit-appearance: none;
+  }
+  .btn-save   { background: var(--accent); color: #000; }
+  .btn-cancel { background: var(--border);  color: var(--text); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">🚛 <span>Dispatch</span></div>
+  <div class="header-center">
+    <button class="nav-btn" id="prevWeek">&#8592;</button>
+    <div class="week-label" id="weekLabel"></div>
+    <button class="nav-btn" id="nextWeek">&#8594;</button>
+    <button class="hdr-btn today" id="todayBtn">Today</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <button class="hdr-btn fleet" id="fleetBtn">⚙ Fleet</button>
+    <div class="save-dot" id="saveDot">✓</div>
+  </div>
+</header>
+
+<!-- LEGEND -->
+<div class="legend">
+  <span class="leg-label">Plants</span>
+  <div class="leg-item"><div class="leg-dot" style="background:var(--c-albany)"></div>Albany</div>
+  <div class="leg-item"><div class="leg-dot" style="background:var(--c-denmark)"></div>Denmark</div>
+  <div class="leg-item"><div class="leg-dot" style="background:var(--c-kendenup)"></div>Kendenup</div>
+  <div class="leg-sep"></div>
+  <div class="leg-item"><div class="leg-dot" style="background:var(--c-standby)"></div>Standby</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#2a3a4d;border:1px solid #3a4a5a"></div>OOS</div>
+</div>
+
+<!-- TABLE -->
+<div class="table-wrap">
+  <table id="scheduleTable">
+    <thead><tr id="headerRow"><th>Truck</th></tr></thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<!-- POPUP OVERLAY -->
+<div class="popup-overlay" id="popupOverlay"></div>
+
+<!-- CELL POPUP (bottom sheet on mobile) -->
+<div class="cell-popup" id="cellPopup">
+  <div class="popup-handle"></div>
+  <div class="popup-truck-label" id="popupLabel"></div>
+  <input class="popup-input" id="popupInput" placeholder="Type job / site note…" />
+  <div class="popup-grid" id="popupGrid"></div>
+  <button class="popup-clear" id="popupClear">Clear cell</button>
+</div>
+
+<!-- FLEET PANEL -->
+<div class="fleet-overlay" id="fleetOverlay">
+  <div class="fleet-panel">
+    <div class="fleet-header">
+      <div class="fleet-handle"></div>
+      <div>
+        <div class="fleet-title">Fleet Management</div>
+        <div class="fleet-subtitle">Rename trucks · Mark out of service</div>
+      </div>
+      <button class="fleet-close" id="fleetClose">✕</button>
+    </div>
+    <div class="fleet-body" id="fleetBody"></div>
+    <div class="fleet-footer">
+      <button class="btn-cancel" id="fleetCancelBtn">Cancel</button>
+      <button class="btn-save"   id="fleetSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const STATUSES = [
+  { label: 'Albany',   cls: 'bg-albany',   color: '#7b5ea7' },
+  { label: 'Denmark',  cls: 'bg-denmark',  color: '#1a7fa8' },
+  { label: 'Kendenup', cls: 'bg-kendenup', color: '#c47c1a' },
+  { label: 'Standby',  cls: 'bg-standby',  color: '#3a5068' },
+];
+
+const DEFAULT_TRUCKS = Array.from({length:11}, (_,i) => ({
+  id: `T-${String(i+1).padStart(2,'0')}`,
+  name: `Truck ${i+1}`,
+  oos: false
+}));
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'concrete_dispatch_v2';
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      s.trucks = s.trucks.map(t => ({ oos: false, ...t }));
+      return s;
+    }
+  } catch(e) {}
+  return { trucks: DEFAULT_TRUCKS.map(t=>({...t})), schedule: {} };
+}
+
+let state = loadState();
+let saveTimer = null;
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+  const el = document.getElementById('saveDot');
+  el.textContent = '✓ saved';
+  el.className = 'save-dot saved';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { el.textContent = '✓'; el.className = 'save-dot'; }, 2000);
+}
+
+// ── DATE HELPERS ──────────────────────────────────────────────────────────────
+let currentWeekStart = getWeekStart(new Date());
+
+function getWeekStart(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  d.setHours(0,0,0,0);
+  return d;
+}
+function addDays(date, n) { const d=new Date(date); d.setDate(d.getDate()+n); return d; }
+function fmtDate(d) { return d.toISOString().slice(0,10); }
+function fmtDisp(d) { return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
+function isToday(d) { return fmtDate(d) === fmtDate(new Date()); }
+
+const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+// ── RENDER TABLE ──────────────────────────────────────────────────────────────
+function render() {
+  const days = Array.from({length:7}, (_,i) => addDays(currentWeekStart, i));
+  document.getElementById('weekLabel').textContent = `${fmtDisp(days[0])} – ${fmtDisp(days[6])}`;
+
+  // Header
+  const hr = document.getElementById('headerRow');
+  hr.innerHTML = '<th>Truck</th>';
+  days.forEach((d,i) => {
+    const th = document.createElement('th');
+    th.className = 'day-header' + (isToday(d) ? ' today-col' : '');
+    th.innerHTML = `<div class="day-name">${DAY_NAMES[i]}</div><div class="day-date">${fmtDisp(d)}</div>`;
+    hr.appendChild(th);
+  });
+
+  // Rows
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+
+  state.trucks.forEach(truck => {
+    const tr = document.createElement('tr');
+    if (truck.oos) tr.classList.add('oos-row');
+
+    const tc = document.createElement('td');
+    tc.className = 'truck-cell';
+    tc.innerHTML = `
+      <div class="truck-num${truck.oos?' dimmed':''}">${truck.id}</div>
+      <div class="truck-name">${esc(truck.name)}</div>
+      ${truck.oos ? '<div class="truck-oos-badge">OOS</div>' : ''}
+    `;
+    tr.appendChild(tc);
+
+    days.forEach(d => {
+      const key = `${fmtDate(d)}|${truck.id}`;
+      const data = state.schedule[key] || { status: null, label: '' };
+      const so = STATUSES.find(s => s.label === data.status);
+
+      const td = document.createElement('td');
+      td.className = 'day-cell' + (isToday(d) ? ' today-col' : '');
+
+      const inner = document.createElement('div');
+      inner.dataset.key = key;
+
+      if (truck.oos) {
+        inner.className = 'cell-inner oos-cell';
+        inner.innerHTML = '<div class="oos-label-text">OOS</div>';
+      } else {
+        inner.className = 'cell-inner ' + (so ? so.cls : 'bg-empty');
+        inner.innerHTML = `
+          <div class="cell-text">${esc(data.label || (so ? so.label : ''))}</div>
+          <div class="cell-sub">${data.label && so ? esc(so.label) : ''}</div>
+        `;
+        inner.addEventListener('click', e => {
+          e.stopPropagation();
+          openPopup(key, truck, d);
+        });
+      }
+
+      td.appendChild(inner);
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+// ── POPUP (bottom sheet) ──────────────────────────────────────────────────────
+let activeKey = null;
+
+function openPopup(key, truck, date) {
+  activeKey = key;
+  const data = state.schedule[key] || { status: null, label: '' };
+
+  document.getElementById('popupLabel').textContent =
+    `${truck.id} · ${truck.name} · ${fmtDisp(date)}`;
+
+  const input = document.getElementById('popupInput');
+  input.value = data.label || '';
+
+  // Build grid buttons
+  const grid = document.getElementById('popupGrid');
+  grid.innerHTML = '';
+  STATUSES.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'popup-option';
+    btn.innerHTML = `<span class="opt-dot" style="background:${s.color}"></span>${s.label}`;
+    if (data.status === s.label) btn.style.borderColor = 'white';
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const cur = state.schedule[activeKey] || {};
+      updateCell(activeKey, s.label, cur.label || '');
+      closePopup();
+      render();
+    });
+    grid.appendChild(btn);
+  });
+
+  document.getElementById('cellPopup').classList.add('open');
+  document.getElementById('popupOverlay').classList.add('open');
+
+  // slight delay so keyboard doesn't immediately pop on mobile
+  setTimeout(() => input.focus(), 100);
+}
+
+function closePopup() {
+  document.getElementById('cellPopup').classList.remove('open');
+  document.getElementById('popupOverlay').classList.remove('open');
+  if (activeKey) {
+    // save whatever was typed
+    const input = document.getElementById('popupInput');
+    const cur = state.schedule[activeKey] || {};
+    if (input.value !== (cur.label || '')) {
+      updateCell(activeKey, cur.status, input.value);
+      render();
+    }
+  }
+  activeKey = null;
+}
+
+document.getElementById('popupInput').addEventListener('input', e => {
+  if (!activeKey) return;
+  const cur = state.schedule[activeKey] || {};
+  updateCell(activeKey, cur.status || null, e.target.value);
+});
+
+document.getElementById('popupInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); closePopup(); }
+});
+
+document.getElementById('popupClear').addEventListener('click', () => {
+  if (activeKey) { delete state.schedule[activeKey]; saveState(); }
+  closePopup();
+  render();
+});
+
+document.getElementById('popupOverlay').addEventListener('click', closePopup);
+
+function updateCell(key, status, label) {
+  if (!status && !label) { delete state.schedule[key]; }
+  else { state.schedule[key] = { status, label }; }
+  saveState();
+}
+
+// ── WEEK NAV ──────────────────────────────────────────────────────────────────
+document.getElementById('prevWeek').addEventListener('click', () => { currentWeekStart=addDays(currentWeekStart,-7); render(); });
+document.getElementById('nextWeek').addEventListener('click', () => { currentWeekStart=addDays(currentWeekStart, 7); render(); });
+document.getElementById('todayBtn').addEventListener('click', () => { currentWeekStart=getWeekStart(new Date()); render(); });
+
+// ── FLEET PANEL ───────────────────────────────────────────────────────────────
+let fleetDraft = [];
+
+function openFleet() {
+  fleetDraft = state.trucks.map(t=>({...t}));
+  renderFleetPanel();
+  document.getElementById('fleetOverlay').classList.add('open');
+}
+function closeFleet() {
+  document.getElementById('fleetOverlay').classList.remove('open');
+}
+
+function renderFleetPanel() {
+  const body = document.getElementById('fleetBody');
+  body.innerHTML = '';
+
+  const t = document.createElement('div');
+  t.className = 'fleet-section-title';
+  t.textContent = 'Active Fleet';
+  body.appendChild(t);
+
+  fleetDraft.forEach((truck, idx) => {
+    const row = document.createElement('div');
+    row.className = 'fleet-truck' + (truck.oos ? ' is-oos' : '');
+
+    const numDiv = document.createElement('div');
+    numDiv.className = 'fleet-num' + (truck.oos ? ' dimmed' : '');
+    numDiv.textContent = truck.id;
+
+    const inputsDiv = document.createElement('div');
+    inputsDiv.className = 'fleet-inputs';
+
+    const nameInput = document.createElement('input');
+    nameInput.className = 'fleet-name-input' + (truck.oos ? ' struck' : '');
+    nameInput.value = truck.name;
+    nameInput.placeholder = 'Truck name';
+    nameInput.addEventListener('input', e => { fleetDraft[idx].name = e.target.value; });
+    inputsDiv.appendChild(nameInput);
+
+    const oosRow = document.createElement('div');
+    oosRow.className = 'oos-row';
+    const tid = `oos-${idx}`;
+
+    const toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    toggle.id = tid;
+    toggle.className = 'oos-toggle';
+    toggle.checked = !!truck.oos;
+    toggle.addEventListener('change', e => { fleetDraft[idx].oos = e.target.checked; renderFleetPanel(); });
+
+    const lbl = document.createElement('label');
+    lbl.className = 'oos-lbl';
+    lbl.htmlFor = tid;
+    lbl.textContent = 'Out of Service';
+
+    oosRow.appendChild(toggle);
+    oosRow.appendChild(lbl);
+    inputsDiv.appendChild(oosRow);
+
+    row.appendChild(numDiv);
+    row.appendChild(inputsDiv);
+    body.appendChild(row);
+  });
+
+  // Add truck
+  const addSec = document.createElement('div');
+  addSec.className = 'add-section';
+  const at = document.createElement('div');
+  at.className = 'fleet-section-title';
+  at.textContent = 'Add New Truck';
+  addSec.appendChild(at);
+
+  const addRow = document.createElement('div');
+  addRow.className = 'add-row';
+  const idIn = document.createElement('input');
+  idIn.className = 'add-id'; idIn.placeholder = 'T-12';
+  const nameIn = document.createElement('input');
+  nameIn.placeholder = 'Name';
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-btn'; addBtn.textContent = '+ Add';
+  addBtn.addEventListener('click', () => {
+    const id = idIn.value.trim();
+    if (!id) { idIn.focus(); return; }
+    fleetDraft.push({ id, name: nameIn.value.trim() || id, oos: false });
+    idIn.value = ''; nameIn.value = '';
+    renderFleetPanel();
+  });
+  addRow.appendChild(idIn); addRow.appendChild(nameIn); addRow.appendChild(addBtn);
+  addSec.appendChild(addRow);
+  body.appendChild(addSec);
+}
+
+document.getElementById('fleetBtn').addEventListener('click', openFleet);
+document.getElementById('fleetClose').addEventListener('click', closeFleet);
+document.getElementById('fleetCancelBtn').addEventListener('click', closeFleet);
+document.getElementById('fleetSaveBtn').addEventListener('click', () => {
+  state.trucks = fleetDraft.map(t=>({...t}));
+  saveState(); closeFleet(); render();
+});
+document.getElementById('fleetOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeFleet();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeFleet(); closePopup(); }
+});
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
